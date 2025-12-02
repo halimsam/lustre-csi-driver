@@ -70,6 +70,10 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Var(&customModuleArgs, "custom-module-args", "Custom module-args for cos-dkms install command. (Can be specified multiple times).")
 	flag.Parse()
+	mm := metrics.NewMetricsManager()
+	if *httpEndpoint != "" {
+		mm.InitializeHTTPHandler(*httpEndpoint, *metricsPath)
+	}
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -111,6 +115,11 @@ func main() {
 		if err != nil {
 			klog.Fatal(err)
 		}
+		if !disableMultiNIC && metrics.IsGKEComponentVersionAvailable() {
+			if err := mm.EmitUsingMultiNic(); err != nil {
+				klog.Fatalf("Failed to emit GKE component version: %v", err)
+			}
+		}
 		if !*disableKmodInstall {
 			if err := kmod.InstallLustreKmod(ctx, *enableLegacyLustrePort, customModuleArgs, nics, disableMultiNIC); err != nil {
 				klog.Fatalf("Kmod install failure: %v", err)
@@ -130,9 +139,7 @@ func main() {
 	}
 
 	if *runController {
-		mm := metrics.NewMetricsManager()
-		if *httpEndpoint != "" && metrics.IsGKEComponentVersionAvailable() {
-			mm.InitializeHTTPHandler(*httpEndpoint, *metricsPath)
+		if metrics.IsGKEComponentVersionAvailable() {
 			if err := mm.EmitGKEComponentVersion(); err != nil {
 				klog.Fatalf("Failed to emit GKE component version: %v", err)
 			}
