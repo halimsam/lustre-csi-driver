@@ -222,7 +222,9 @@ func handle() error {
 		}
 		if *doMultiNICSetup && multiNicUsable {
 			// TODO(samhalim): Remove the hard coded experimental version once we have a GKE version that supports MultiNIC in prod.
-			*gkeClusterVersion = "1.35.0-gke.2271000"
+			if *useManagedDriver {
+				*gkeClusterVersion = "1.35.0-gke.2271000"
+			}
 
 			if err := multiNICSubnetSetup(project, *gceZone, *gceRegion); err != nil {
 				return fmt.Errorf("failed to setup Multi-NIC subnet: %w", err)
